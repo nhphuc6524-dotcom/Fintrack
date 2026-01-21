@@ -1,0 +1,97 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#4f46e5">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2933/2933116.png">
+    <title>FinTrack AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+  }
+}
+</script>
+<style>
+  body {
+    background: radial-gradient(circle at top right, #e0e7ff, #f8fafc);
+    background-attachment: fixed;
+    height: 100vh;
+    margin: 0;
+  }
+  /* Ẩn thanh cuộn */
+  ::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+  }
+  
+  /* Thông báo lỗi khi chạy file trực tiếp */
+  #local-file-error {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #f8fafc;
+    padding: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+</style>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="text-gray-900 select-none overflow-hidden">
+    <div id="root">
+        <!-- Trạng thái chờ nạp -->
+        <div class="h-screen w-full flex items-center justify-center bg-white">
+            <div class="flex flex-col items-center gap-4">
+                <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                <p class="font-bold text-slate-400 animate-pulse">Đang nạp FinTrack AI...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script kiểm tra file:// -->
+    <script>
+        if (window.location.protocol === 'file:') {
+            document.getElementById('root').innerHTML = `
+                <div class="min-h-screen w-full flex items-center justify-center p-6 bg-slate-50">
+                    <div class="max-w-md w-full bg-white rounded-[2.5rem] p-8 shadow-2xl border border-red-100">
+                        <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <h2 class="text-2xl font-black text-slate-800 mb-4 tracking-tight">Không thể chạy trực tiếp!</h2>
+                        <p class="text-slate-500 mb-6 leading-relaxed">Bạn đang mở file từ ổ cứng. Vì lý do bảo mật, trình duyệt không cho phép chạy các tính năng AI hiện đại theo cách này.</p>
+                        
+                        <div class="bg-indigo-50 p-6 rounded-3xl text-left mb-6">
+                            <h3 class="font-black text-indigo-900 text-sm mb-3 uppercase tracking-widest">Cách khắc phục:</h3>
+                            <ul class="space-y-3 text-sm font-medium text-indigo-700">
+                                <li class="flex gap-3"><i class="fas fa-check-circle mt-1"></i> Sử dụng extension <b>Live Server</b> trong VS Code.</li>
+                                <li class="flex gap-3"><i class="fas fa-check-circle mt-1"></i> Hoặc dùng tính năng <b>Preview</b> của công cụ lập trình.</li>
+                                <li class="flex gap-3"><i class="fas fa-check-circle mt-1"></i> Hoặc tải thư mục này lên <b>Netlify Drop</b> để xem online.</li>
+                            </ul>
+                        </div>
+                        
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Vui lòng dùng máy chủ ảo (Local Server) để tiếp tục.</p>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+
+    <script type="module" src="index.tsx"></script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
