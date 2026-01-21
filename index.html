@@ -1,589 +1,393 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FinTrack Pro - Tài Chính Thông Minh</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>FinTrack Pro - AI Finance</title>
     
+    <!-- External Resources -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         
         :root {
+            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
             --primary: #4f46e5;
             --success: #10b981;
-            --danger: #ef4444;
-            --bg: #f8fafc;
+            --danger: #f43f5e;
         }
 
-        body { 
+        body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background: var(--bg); 
-            margin: 0; 
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background-color: #f8fafc;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
             overflow: hidden;
-        }
-
-        .app-shell {
-            width: 100%;
-            max-width: 430px;
-            height: 100%;
-            background: white;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
-        }
-
-        @media (min-height: 700px) and (min-width: 500px) {
-            .app-shell {
-                height: 90vh;
-                border-radius: 2.5rem;
-                border: 8px solid #1e293b;
-            }
+            height: 100vh;
+            margin: 0;
         }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
         
-        .nav-btn.active { color: var(--primary); transform: scale(1.1); }
-        .nav-btn { color: #cbd5e1; transition: all 0.2s ease; }
-
-        .type-toggle.expense { background: var(--danger); }
-        .type-toggle.income { background: var(--success); }
+        .page-transition {
+            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
 
         @keyframes slideUp {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .animate-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
-        /* Modal styling */
-        .modal {
-            display: none;
-            position: absolute;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 100;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
+        .glass-nav {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            border-top: 1px solid rgba(226, 232, 240, 0.8);
+            padding-bottom: calc(0.75rem + var(--safe-area-bottom));
         }
-        .modal.active { display: flex; }
+
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        }
+
+        input:focus { outline: none; }
+        select { -webkit-appearance: none; appearance: none; }
+        
+        .active-tab { color: var(--primary); transform: translateY(-2px); }
+        .tab-icon { transition: all 0.2s ease; }
     </style>
+
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom": "https://esm.sh/react-dom@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "recharts": "https://esm.sh/recharts@2.10.3?external=react,react-dom",
+        "@google/genai": "https://esm.sh/@google/genai@1.3.0"
+      }
+    }
+    </script>
 </head>
 <body>
+    <div id="root"></div>
 
-    <div class="app-shell overflow-hidden">
-        <!-- Header: Balance & Summary -->
-        <div class="bg-indigo-600 p-8 pt-10 text-white rounded-b-[2.5rem] shadow-lg">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h1 class="text-[10px] font-black uppercase tracking-widest opacity-70">Số dư hiện tại</h1>
-                    <div id="balance-amount" class="text-3xl font-black mt-1">0<span class="text-sm ml-1 opacity-50">đ</span></div>
-                </div>
-                <div class="text-right">
-                    <div class="text-[9px] font-bold text-teal-300 uppercase">Thu: <span id="summary-income">0</span>đ</div>
-                    <div class="text-[9px] font-bold text-rose-300 uppercase">Chi: <span id="summary-expense">0</span>đ</div>
-                </div>
-            </div>
-            
-            <div class="mt-6 bg-white/10 p-4 rounded-2xl backdrop-blur-md">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-[9px] font-bold uppercase opacity-70">Ngân sách chi tiêu</span>
-                    <span id="percent-label" class="text-[10px] font-black">0%</span>
-                </div>
-                <div class="h-1.5 w-full bg-white/20 rounded-full overflow-hidden">
-                    <div id="budget-progress" class="h-full bg-white transition-all duration-700" style="width: 0%"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="flex-1 overflow-y-auto p-5 no-scrollbar pb-24">
-            
-            <!-- Tab 1: Home (Add New) -->
-            <div id="tab-home" class="tab-content active animate-up">
-                <div class="space-y-5">
-                    <!-- Toggle Thu nhập/Chi tiêu -->
-                    <div class="flex bg-slate-100 p-1 rounded-2xl">
-                        <button onclick="setTxType('expense')" id="btn-type-expense" class="flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all bg-white shadow-sm text-rose-500">Chi tiêu</button>
-                        <button onclick="setTxType('income')" id="btn-type-income" class="flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all text-slate-400">Thu nhập</button>
-                    </div>
-
-                    <form id="expense-form" class="space-y-4">
-                        <div class="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 shadow-inner">
-                            <input type="text" id="input-amount" placeholder="0" class="w-full bg-transparent text-3xl font-black text-center outline-none mb-4">
-                            
-                            <div class="grid grid-cols-2 gap-3">
-                                <div class="space-y-1">
-                                    <label class="text-[8px] font-bold text-slate-400 uppercase px-2">Danh mục</label>
-                                    <select id="input-category" class="w-full p-3 rounded-xl bg-white text-xs font-bold border-none shadow-sm outline-none"></select>
-                                </div>
-                                <div class="space-y-1">
-                                    <label class="text-[8px] font-bold text-slate-400 uppercase px-2">Ngày</label>
-                                    <input type="date" id="input-date" class="w-full p-3 rounded-xl bg-white text-xs font-bold border-none shadow-sm outline-none">
-                                </div>
-                            </div>
-
-                            <div class="mt-4 space-y-1">
-                                <label class="text-[8px] font-bold text-slate-400 uppercase px-2">Ghi chú</label>
-                                <input type="text" id="input-note" placeholder="Bạn đã dùng tiền làm gì?" class="w-full p-3 rounded-xl bg-white text-xs font-bold border-none shadow-sm outline-none">
-                            </div>
-                        </div>
-                        <button type="submit" class="w-full bg-slate-900 text-white font-black py-4 rounded-2xl active:scale-95 transition-all shadow-xl uppercase text-xs tracking-widest">Xác nhận giao dịch</button>
-                    </form>
-
-                    <!-- Trợ lý AI -->
-                    <div class="bg-indigo-900 p-6 rounded-[2rem] text-white shadow-xl relative overflow-hidden">
-                        <div class="absolute top-0 right-0 p-4 opacity-10 text-4xl"><i class="fas fa-robot"></i></div>
-                        <div class="flex justify-between items-center mb-3">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-indigo-300">Tư vấn tài chính AI</span>
-                            <button id="btn-ask-ai" class="text-[8px] bg-indigo-500/30 hover:bg-indigo-500/50 px-3 py-1 rounded-full font-black">PHÂN TÍCH NGAY</button>
-                        </div>
-                        <p id="ai-advice" class="text-xs italic opacity-80 leading-relaxed pr-8">AI đang đợi dữ liệu của bạn để đưa ra lời khuyên tốt nhất...</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab 2: Statistics (Charts) -->
-            <div id="tab-charts" class="tab-content animate-up">
-                <div class="space-y-6">
-                    <h2 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Phân bổ chi tiêu</h2>
-                    <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-50">
-                        <canvas id="categoryChart" width="400" height="400"></canvas>
-                    </div>
-                    <div id="chart-legend" class="grid grid-cols-2 gap-3 mt-4">
-                        <!-- Legend dynamically populated -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab 3: History -->
-            <div id="tab-history" class="tab-content animate-up">
-                <div class="space-y-4">
-                    <div class="flex gap-2">
-                        <div class="flex-1 relative">
-                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
-                            <input type="text" id="history-search" placeholder="Tìm kiếm..." class="w-full pl-10 pr-4 py-3 bg-slate-50 rounded-xl text-xs outline-none border border-slate-100 font-medium">
-                        </div>
-                        <select id="history-filter" class="p-3 bg-slate-50 rounded-xl text-[10px] font-bold outline-none border border-slate-100">
-                            <option value="all">TẤT CẢ</option>
-                        </select>
-                    </div>
-                    <div id="history-list" class="space-y-3 pb-4"></div>
-                </div>
-            </div>
-
-            <!-- Tab 4: Settings -->
-            <div id="tab-settings" class="tab-content animate-up">
-                <div class="space-y-6">
-                    <div class="bg-slate-50 p-6 rounded-[2rem] text-center shadow-inner">
-                        <p class="text-[10px] font-black text-slate-400 uppercase mb-2">Hạn mức chi tiêu tháng</p>
-                        <input type="number" id="input-budget" class="text-3xl font-black text-indigo-600 bg-transparent text-center w-full outline-none">
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <button onclick="exportData()" class="p-4 bg-white rounded-2xl border border-slate-100 flex flex-col items-center gap-2 hover:bg-slate-50 transition-colors">
-                            <i class="fas fa-file-export text-indigo-500 text-xl"></i>
-                            <span class="text-[9px] font-black uppercase">Xuất dữ liệu</span>
-                        </button>
-                        <label class="p-4 bg-white rounded-2xl border border-slate-100 flex flex-col items-center gap-2 hover:bg-slate-50 transition-colors cursor-pointer">
-                            <i class="fas fa-file-import text-teal-500 text-xl"></i>
-                            <span class="text-[9px] font-black uppercase">Nhập dữ liệu</span>
-                            <input type="file" id="import-file" class="hidden" accept=".json">
-                        </label>
-                    </div>
-
-                    <button id="btn-clear-all" class="w-full text-[10px] font-black text-rose-400 uppercase tracking-widest p-4 bg-rose-50 rounded-2xl">Xóa toàn bộ dữ liệu</button>
-                    
-                    <div class="p-6 bg-slate-900 rounded-[2rem] text-white text-center">
-                        <p class="text-[10px] font-black opacity-40 uppercase mb-1">Phiên bản Pro 3.0</p>
-                        <p class="text-xs font-bold">Lưu trữ 100% trên thiết bị</p>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- Navigation Bar -->
-        <nav class="absolute bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl p-4 px-6 flex justify-between items-center border-t border-slate-100 z-50 rounded-t-[2.5rem] shadow-2xl">
-            <button onclick="switchTab('home')" id="nav-home" class="nav-btn active flex flex-col items-center gap-1 flex-1">
-                <i class="fas fa-plus-circle text-xl"></i>
-                <span class="text-[7px] font-black uppercase">Thêm</span>
-            </button>
-            <button onclick="switchTab('charts')" id="nav-charts" class="nav-btn flex flex-col items-center gap-1 flex-1">
-                <i class="fas fa-chart-pie text-xl"></i>
-                <span class="text-[7px] font-black uppercase">Biểu đồ</span>
-            </button>
-            <button onclick="switchTab('history')" id="nav-history" class="nav-btn flex flex-col items-center gap-1 flex-1">
-                <i class="fas fa-list-ul text-xl"></i>
-                <span class="text-[7px] font-black uppercase">Lịch sử</span>
-            </button>
-            <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn flex flex-col items-center gap-1 flex-1">
-                <i class="fas fa-user-cog text-xl"></i>
-                <span class="text-[7px] font-black uppercase">Cài đặt</span>
-            </button>
-        </nav>
-
-        <!-- Edit Modal -->
-        <div id="edit-modal" class="modal">
-            <div class="bg-white w-full rounded-[2.5rem] p-8 shadow-2xl animate-up">
-                <h3 class="text-xs font-black uppercase tracking-widest text-slate-400 mb-6 text-center">Chỉnh sửa giao dịch</h3>
-                <div class="space-y-4">
-                    <input type="text" id="edit-amount" class="w-full p-4 text-2xl font-black rounded-2xl bg-slate-50 text-center outline-none">
-                    <input type="text" id="edit-note" placeholder="Ghi chú" class="w-full p-3 rounded-xl bg-slate-50 text-xs font-bold outline-none">
-                    <div class="flex gap-2">
-                        <button onclick="closeEditModal()" class="flex-1 py-4 text-[10px] font-black uppercase text-slate-400">Hủy</button>
-                        <button id="btn-save-edit" class="flex-1 py-4 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-200">Lưu thay đổi</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Script Logic -->
     <script type="module">
-        import { GoogleGenAI } from 'https://esm.sh/@google/genai@1.38.0';
+        import React, { useState, useEffect, useMemo } from 'react';
+        import { createRoot } from 'react-dom/client';
+        import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+        import { GoogleGenAI } from "@google/genai";
 
-        // --- DANH MỤC ---
-        const CATS = {
-            expense: [
-                { id: 'eat', label: 'Ăn uống', icon: '🍔', color: '#f87171' },
-                { id: 'move', label: 'Di chuyển', icon: '🚗', color: '#fb923c' },
-                { id: 'shop', label: 'Mua sắm', icon: '🛍️', color: '#fbbf24' },
-                { id: 'home', label: 'Tiền nhà', icon: '🏠', color: '#4ade80' },
-                { id: 'play', label: 'Giải trí', icon: '🎮', color: '#2dd4bf' },
-                { id: 'health', label: 'Sức khỏe', icon: '🏥', color: '#60a5fa' },
-                { id: 'etc_ex', label: 'Khác', icon: '✨', color: '#c084fc' }
-            ],
-            income: [
-                { id: 'salary', label: 'Lương', icon: '💵', color: '#22c55e' },
-                { id: 'bonus', label: 'Thưởng', icon: '🎁', color: '#34d399' },
-                { id: 'gift', label: 'Quà tặng', icon: '💝', color: '#f472b6' },
-                { id: 'etc_in', label: 'Khác', icon: '🏦', color: '#94a3b8' }
-            ]
-        };
+        // --- Constants & Types ---
+        const STORAGE_KEY = 'fintrack_pro_v4_unified';
+        const INITIAL_BUDGET = 10000000;
 
-        // --- STATE ---
-        let txType = 'expense';
-        let transactions = JSON.parse(localStorage.getItem('fintrack_pro_tx')) || [];
-        let budget = Number(localStorage.getItem('fintrack_pro_budget')) || 5000000;
-        let myChart = null;
-        let editingId = null;
+        const CATEGORIES = [
+            { id: '1', label: 'Ăn uống', icon: '🍔', color: '#f43f5e', type: 'expense' },
+            { id: '2', label: 'Di chuyển', icon: '🚗', color: '#f59e0b', type: 'expense' },
+            { id: '3', label: 'Mua sắm', icon: '🛍️', color: '#ec4899', type: 'expense' },
+            { id: '4', label: 'Giải trí', icon: '🎮', color: '#8b5cf6', type: 'expense' },
+            { id: '5', label: 'Sức khỏe', icon: '🏥', color: '#0ea5e9', type: 'expense' },
+            { id: '6', label: 'Lương', icon: '💵', color: '#10b981', type: 'income' },
+            { id: '7', label: 'Thưởng', icon: '🎁', color: '#3b82f6', type: 'income' },
+            { id: '8', label: 'Khác', icon: '✨', color: '#64748b', type: 'expense' },
+        ];
 
-        // --- ELEMENTS ---
-        const balanceEl = document.getElementById('balance-amount');
-        const summaryInEl = document.getElementById('summary-income');
-        const summaryExEl = document.getElementById('summary-expense');
-        const progressEl = document.getElementById('budget-progress');
-        const percentEl = document.getElementById('percent-label');
-        const inputAmount = document.getElementById('input-amount');
-        const inputCat = document.getElementById('input-category');
-        const inputDate = document.getElementById('input-date');
-        const inputNote = document.getElementById('input-note');
-        const historyList = document.getElementById('history-list');
-        const historySearch = document.getElementById('history-search');
-        const historyFilter = document.getElementById('history-filter');
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('home');
+            const [transactions, setTransactions] = useState([]);
+            const [budget, setBudget] = useState(INITIAL_BUDGET);
+            const [aiAdvice, setAiAdvice] = useState('Chào bạn! Tôi là Gemini. Hãy ghi lại chi tiêu để tôi tư vấn tài chính cho bạn nhé.');
+            const [isAiLoading, setIsAiLoading] = useState(false);
 
-        // --- UI HELPERS ---
-        window.setTxType = (type) => {
-            txType = type;
-            document.getElementById('btn-type-expense').className = type === 'expense' 
-                ? 'flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all bg-white shadow-sm text-rose-500' 
-                : 'flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all text-slate-400';
-            document.getElementById('btn-type-income').className = type === 'income' 
-                ? 'flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all bg-white shadow-sm text-teal-500' 
-                : 'flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all text-slate-400';
-            
-            loadCategories();
-        };
+            // Form State
+            const [type, setType] = useState('expense');
+            const [amountInput, setAmountInput] = useState('');
+            const [selectedCat, setSelectedCat] = useState(CATEGORIES[0].label);
+            const [note, setNote] = useState('');
 
-        function loadCategories() {
-            inputCat.innerHTML = CATS[txType].map(c => `<option value="${c.label}">${c.icon} ${c.label}</option>`).join('');
-            
-            // Cập nhật bộ lọc history
-            const allCats = [...CATS.expense, ...CATS.income];
-            const uniqueCats = [...new Set(allCats.map(c => c.label))];
-            historyFilter.innerHTML = '<option value="all">TẤT CẢ</option>' + uniqueCats.map(c => `<option value="${c}">${c.toUpperCase()}</option>`).join('');
-        }
-
-        function updateUI() {
-            const totalIn = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-            const totalEx = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-            const balance = totalIn - totalEx;
-
-            balanceEl.innerHTML = `${balance.toLocaleString('vi-VN')}<span class="text-sm ml-1 opacity-50">đ</span>`;
-            summaryInEl.innerText = totalIn.toLocaleString('vi-VN');
-            summaryExEl.innerText = totalEx.toLocaleString('vi-VN');
-
-            const percent = Math.min((totalEx / budget) * 100, 100);
-            progressEl.style.width = `${percent}%`;
-            percentEl.innerText = `${Math.round(percent)}%`;
-
-            if (percent >= 90) progressEl.classList.add('bg-rose-400');
-            else progressEl.classList.remove('bg-rose-400');
-
-            renderHistory();
-            if (myChart) updateChart();
-        }
-
-        window.switchTab = (tab) => {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`tab-${tab}`).classList.add('active');
-            document.getElementById(`nav-${tab}`).classList.add('active');
-            
-            if (tab === 'charts') initChart();
-        };
-
-        // --- CHART LOGIC ---
-        function initChart() {
-            const ctx = document.getElementById('categoryChart').getContext('2d');
-            if (myChart) myChart.destroy();
-
-            const data = getChartData();
-            myChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: data.labels,
-                    datasets: [{
-                        data: data.values,
-                        backgroundColor: data.colors,
-                        borderWidth: 0,
-                        hoverOffset: 10
-                    }]
-                },
-                options: {
-                    cutout: '75%',
-                    plugins: { legend: { display: false } },
-                    animation: { animateScale: true }
+            // --- Database Logic (LocalStorage) ---
+            useEffect(() => {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        setTransactions(parsed.transactions || []);
+                        setBudget(parsed.budget || INITIAL_BUDGET);
+                    } catch (e) { console.error("Restore failed", e); }
                 }
-            });
+            }, []);
 
-            // Legend
-            const legendEl = document.getElementById('chart-legend');
-            legendEl.innerHTML = data.labels.map((l, i) => `
-                <div class="flex items-center gap-2 p-2 bg-slate-50 rounded-xl">
-                    <div class="w-2 h-2 rounded-full" style="background:${data.colors[i]}"></div>
-                    <span class="text-[9px] font-black text-slate-500 uppercase">${l}</span>
-                    <span class="ml-auto text-[9px] font-black">${Math.round((data.values[i]/data.total)*100)}%</span>
-                </div>
-            `).join('');
-        }
+            useEffect(() => {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions, budget }));
+            }, [transactions, budget]);
 
-        function getChartData() {
-            const expenseOnly = transactions.filter(t => t.type === 'expense');
-            const groups = {};
-            expenseOnly.forEach(t => {
-                groups[t.category] = (groups[t.category] || 0) + t.amount;
-            });
+            // --- Stats Calculation ---
+            const stats = useMemo(() => {
+                const income = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+                const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+                const progress = budget > 0 ? Math.min((expense / budget) * 100, 100) : 0;
+                return { income, expense, balance: income - expense, progress };
+            }, [transactions, budget]);
 
-            const labels = Object.keys(groups);
-            const values = Object.values(groups);
-            const colors = labels.map(l => {
-                const cat = [...CATS.expense, ...CATS.income].find(c => c.label === l);
-                return cat ? cat.color : '#cbd5e1';
-            });
-            const total = values.reduce((a, b) => a + b, 0) || 1;
-
-            return { labels, values, colors, total };
-        }
-
-        function updateChart() {
-            const data = getChartData();
-            myChart.data.labels = data.labels;
-            myChart.data.datasets[0].data = data.values;
-            myChart.data.datasets[0].backgroundColor = data.colors;
-            myChart.update();
-        }
-
-        // --- HISTORY LOGIC ---
-        function renderHistory() {
-            const searchTerm = historySearch.value.toLowerCase();
-            const filterCat = historyFilter.value;
-
-            const filtered = transactions.filter(t => {
-                const matchSearch = (t.note + t.category).toLowerCase().includes(searchTerm);
-                const matchCat = filterCat === 'all' || t.category === filterCat;
-                return matchSearch && matchCat;
-            });
-
-            if (filtered.length === 0) {
-                historyList.innerHTML = `<div class="text-center py-10 opacity-30 font-black text-[10px] uppercase">Không có giao dịch</div>`;
-                return;
-            }
-
-            historyList.innerHTML = filtered.map(t => `
-                <div class="bg-white p-4 rounded-2xl flex justify-between items-center shadow-sm border border-slate-50 active:scale-95 transition-transform">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-xl">
-                            ${([...CATS.expense, ...CATS.income].find(c => c.label === t.category)?.icon || '✨')}
-                        </div>
-                        <div>
-                            <p class="font-extrabold text-[13px] text-slate-800">${t.category}</p>
-                            <p class="text-[9px] text-slate-400 font-bold">${t.note || 'Không có ghi chú'}</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <p class="font-black text-sm ${t.type === 'income' ? 'text-teal-500' : 'text-rose-500'}">
-                            ${t.type === 'income' ? '+' : '-'}${t.amount.toLocaleString('vi-VN')}đ
-                        </p>
-                        <div class="flex gap-2 justify-end mt-1">
-                            <button onclick="openEditModal(${t.id})" class="text-[8px] font-black uppercase text-indigo-300">Sửa</button>
-                            <button onclick="deleteTx(${t.id})" class="text-[8px] font-black uppercase text-rose-200">Xóa</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // --- ACTIONS ---
-        window.deleteTx = (id) => {
-            if (confirm('Xóa giao dịch này?')) {
-                transactions = transactions.filter(t => t.id !== id);
-                save();
-                updateUI();
-            }
-        };
-
-        window.openEditModal = (id) => {
-            const tx = transactions.find(t => t.id === id);
-            editingId = id;
-            document.getElementById('edit-amount').value = tx.amount;
-            document.getElementById('edit-note').value = tx.note;
-            document.getElementById('edit-modal').classList.add('active');
-        };
-
-        window.closeEditModal = () => {
-            document.getElementById('edit-modal').classList.remove('active');
-            editingId = null;
-        };
-
-        document.getElementById('btn-save-edit').onclick = () => {
-            const amt = parseInt(document.getElementById('edit-amount').value);
-            const note = document.getElementById('edit-note').value;
-            if (amt > 0) {
-                const idx = transactions.findIndex(t => t.id === editingId);
-                transactions[idx].amount = amt;
-                transactions[idx].note = note;
-                save();
-                updateUI();
-                closeEditModal();
-            }
-        };
-
-        function save() {
-            localStorage.setItem('fintrack_pro_tx', JSON.stringify(transactions));
-            localStorage.setItem('fintrack_pro_budget', budget.toString());
-        }
-
-        // Event Listeners
-        inputAmount.oninput = (e) => {
-            let val = e.target.value.replace(/[^0-9]/g, '');
-            e.target.value = val ? new Intl.NumberFormat('vi-VN').format(parseInt(val)) : '';
-        };
-
-        document.getElementById('expense-form').onsubmit = (e) => {
-            e.preventDefault();
-            const amt = parseInt(inputAmount.value.replace(/[^0-9]/g, ''));
-            if (!amt) return alert('Nhập số tiền!');
-
-            const newTx = {
-                id: Date.now(),
-                type: txType,
-                amount: amt,
-                category: inputCat.value,
-                note: inputNote.value,
-                date: inputDate.value || new Date().toISOString().split('T')[0]
-            };
-
-            transactions = [newTx, ...transactions];
-            save();
-            updateUI();
-            inputAmount.value = '';
-            inputNote.value = '';
-            switchTab('history');
-        };
-
-        historySearch.oninput = renderHistory;
-        historyFilter.onchange = renderHistory;
-
-        document.getElementById('input-budget').onchange = (e) => {
-            budget = parseInt(e.target.value) || 5000000;
-            save();
-            updateUI();
-        };
-
-        // --- EXPORT / IMPORT ---
-        window.exportData = () => {
-            const data = JSON.stringify({ transactions, budget });
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `fintrack_backup_${new Date().toLocaleDateString()}.json`;
-            a.click();
-        };
-
-        document.getElementById('import-file').onchange = (e) => {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const data = JSON.parse(event.target.result);
-                transactions = data.transactions || [];
-                budget = data.budget || 5000000;
-                save();
-                updateUI();
-                alert('Đã khôi phục dữ liệu!');
-            };
-            reader.readAsText(file);
-        };
-
-        document.getElementById('btn-clear-all').onclick = () => {
-            if(confirm('Xóa sạch dữ liệu?')) {
-                localStorage.clear();
-                location.reload();
-            }
-        };
-
-        // --- AI ANALYTICS ---
-        document.getElementById('btn-ask-ai').onclick = async () => {
-            const aiAdvice = document.getElementById('ai-advice');
-            aiAdvice.innerText = "Đang phân tích dữ liệu chi tiêu của bạn...";
-            
-            try {
-                const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-                const totalEx = transactions.filter(t => t.type === 'expense').reduce((s,t) => s+t.amount, 0);
-                const mostCat = getChartData().labels[0] || "Chưa rõ";
-                
-                const prompt = `Tổng chi: ${totalEx}đ, Hạn mức: ${budget}đ, Tiêu nhiều nhất vào: ${mostCat}. Hãy đưa ra 1 lời khuyên tài chính ngắn (15 từ), thông minh, thực tế bằng tiếng Việt.`;
-                
-                const response = await ai.models.generateContent({
-                    model: 'gemini-3-flash-preview',
-                    contents: prompt
+            const chartData = useMemo(() => {
+                const groups = {};
+                transactions.filter(t => t.type === 'expense').forEach(t => {
+                    groups[t.category] = (groups[t.category] || 0) + t.amount;
                 });
-                aiAdvice.innerText = response.text;
-            } catch (e) {
-                aiAdvice.innerText = "Hãy quản lý tiền bạc thật tốt để hướng tới tự do tài chính nhé! 💰";
-            }
+                return Object.entries(groups).map(([name, value]) => ({
+                    name, value, color: CATEGORIES.find(c => c.label === name)?.color || '#94a3b8'
+                })).sort((a, b) => b.value - a.value);
+            }, [transactions]);
+
+            // --- Handlers ---
+            const handleSave = (e) => {
+                e.preventDefault();
+                const rawAmount = parseInt(amountInput.replace(/\D/g, ''));
+                if (!rawAmount) return;
+
+                const newTx = {
+                    id: Date.now().toString(),
+                    amount: rawAmount,
+                    type,
+                    category: selectedCat,
+                    note: note.trim(),
+                    date: new Date().toLocaleDateString('vi-VN'),
+                    timestamp: Date.now()
+                };
+
+                setTransactions([newTx, ...transactions]);
+                setAmountInput('');
+                setNote('');
+                setActiveTab('history');
+            };
+
+            const fetchAiAdvice = async () => {
+                if (isAiLoading) return;
+                setIsAiLoading(true);
+                try {
+                    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+                    const recentContext = transactions.slice(0, 10).map(t => `${t.category}: ${t.amount}đ`).join(', ');
+                    const prompt = `Bạn là chuyên gia tài chính. Dữ liệu: Chi ${stats.expense}đ/${budget}đ ngân sách. Gần đây: ${recentContext}. Đưa ra 1 lời khuyên ngắn gọn, hài hước, thực tế bằng tiếng Việt (dưới 25 từ).`;
+                    
+                    const result = await ai.models.generateContent({
+                        model: 'gemini-3-flash-preview',
+                        contents: prompt
+                    });
+                    setAiAdvice(result.text || "Tiết kiệm là quốc sách!");
+                } catch (err) {
+                    setAiAdvice("Hãy tiếp tục ghi chép để tôi hiểu thói quen của bạn hơn.");
+                } finally {
+                    setIsAiLoading(false);
+                }
+            };
+
+            const handleDelete = (id) => {
+                if(confirm('Xóa giao dịch này?')) {
+                    setTransactions(transactions.filter(t => t.id !== id));
+                }
+            };
+
+            // --- Render Components ---
+            return React.createElement('div', { className: 'flex flex-col h-screen max-w-md mx-auto bg-slate-50 relative' },
+                // Header
+                React.createElement('div', { className: 'bg-indigo-600 p-6 pt-12 pb-10 text-white rounded-b-[45px] shadow-2xl shrink-0 z-10' },
+                    React.createElement('div', { className: 'flex justify-between items-start' },
+                        React.createElement('div', null,
+                            React.createElement('p', { className: 'text-[11px] font-bold uppercase opacity-60 tracking-[2px]' }, 'Số dư tổng'),
+                            React.createElement('h1', { className: 'text-4xl font-black mt-1 tracking-tight' }, stats.balance.toLocaleString() + 'đ')
+                        ),
+                        React.createElement('div', { className: 'bg-white/10 p-3 rounded-2xl backdrop-blur-md' },
+                            React.createElement('i', { className: 'fas fa-wallet text-xl' })
+                        )
+                    ),
+                    React.createElement('div', { className: 'mt-8 grid grid-cols-2 gap-4' },
+                        React.createElement('div', { className: 'bg-white/10 p-4 rounded-2xl' },
+                            React.createElement('p', { className: 'text-[10px] font-black uppercase opacity-60 mb-1' }, 'Thu nhập'),
+                            React.createElement('p', { className: 'text-base font-bold text-emerald-300' }, '+' + stats.income.toLocaleString())
+                        ),
+                        React.createElement('div', { className: 'bg-white/10 p-4 rounded-2xl' },
+                            React.createElement('p', { className: 'text-[10px] font-black uppercase opacity-60 mb-1' }, 'Chi tiêu'),
+                            React.createElement('p', { className: 'text-base font-bold text-rose-300' }, '-' + stats.expense.toLocaleString())
+                        )
+                    ),
+                    React.createElement('div', { className: 'mt-6 px-1' },
+                        React.createElement('div', { className: 'flex justify-between text-[10px] font-black mb-2 uppercase tracking-widest' },
+                            React.createElement('span', { className: 'opacity-70' }, 'Ngân sách tháng'),
+                            React.createElement('span', null, Math.round(stats.progress) + '%')
+                        ),
+                        React.createElement('div', { className: 'h-2 w-full bg-white/20 rounded-full overflow-hidden' },
+                            React.createElement('div', { 
+                                className: `h-full transition-all duration-1000 ease-out ${stats.progress > 90 ? 'bg-rose-400' : 'bg-emerald-400'}`, 
+                                style: { width: stats.progress + '%' } 
+                            })
+                        )
+                    )
+                ),
+
+                // Main Content
+                React.createElement('div', { className: 'flex-1 overflow-y-auto no-scrollbar p-6 pb-32' },
+                    activeTab === 'home' && React.createElement('div', { className: 'page-transition space-y-6' },
+                        React.createElement('div', { className: 'flex bg-slate-200 p-1.5 rounded-2xl shadow-inner' },
+                            React.createElement('button', { 
+                                onClick: () => { setType('expense'); setSelectedCat(CATEGORIES.find(c => c.type === 'expense').label); },
+                                className: `flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase transition-all ${type === 'expense' ? 'bg-white text-rose-500 shadow-md' : 'text-slate-500'}`
+                            }, 'Chi tiêu'),
+                            React.createElement('button', { 
+                                onClick: () => { setType('income'); setSelectedCat(CATEGORIES.find(c => c.type === 'income').label); },
+                                className: `flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase transition-all ${type === 'income' ? 'bg-white text-emerald-500 shadow-md' : 'text-slate-500'}`
+                            }, 'Thu nhập')
+                        ),
+                        React.createElement('form', { onSubmit: handleSave, className: 'space-y-4' },
+                            React.createElement('div', { className: 'bg-white p-8 rounded-[35px] card-shadow border border-slate-100' },
+                                React.createElement('input', {
+                                    type: 'text',
+                                    placeholder: '0',
+                                    value: amountInput,
+                                    onChange: e => setAmountInput(e.target.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ",")),
+                                    className: 'w-full text-5xl font-black text-center text-slate-800'
+                                }),
+                                React.createElement('div', { className: 'grid grid-cols-2 gap-4 mt-8' },
+                                    React.createElement('div', { className: 'relative' },
+                                        React.createElement('select', { 
+                                            value: selectedCat, 
+                                            onChange: e => setSelectedCat(e.target.value),
+                                            className: 'w-full p-4 bg-slate-50 rounded-2xl text-xs font-bold border-none outline-none'
+                                        }, CATEGORIES.filter(c => c.type === type).map(c => React.createElement('option', { key: c.id, value: c.label }, c.icon + ' ' + c.label))),
+                                        React.createElement('i', { className: 'fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-[10px] text-slate-300' })
+                                    ),
+                                    React.createElement('input', {
+                                        placeholder: 'Ghi chú...',
+                                        value: note,
+                                        onChange: e => setNote(e.target.value),
+                                        className: 'p-4 bg-slate-50 rounded-2xl text-xs font-bold border-none outline-none'
+                                    })
+                                )
+                            ),
+                            React.createElement('button', { type: 'submit', className: 'w-full bg-slate-900 text-white py-5 rounded-[25px] font-black uppercase text-[11px] tracking-[3px] shadow-xl active:scale-95 transition-all' }, 'Lưu giao dịch')
+                        ),
+                        React.createElement('div', { className: 'bg-indigo-900 p-6 rounded-[35px] text-white shadow-2xl relative overflow-hidden' },
+                            React.createElement('div', { className: 'flex justify-between items-center mb-4' },
+                                React.createElement('span', { className: 'text-[10px] font-black uppercase tracking-widest text-indigo-300 flex items-center gap-2' }, 
+                                    React.createElement('i', { className: 'fas fa-robot' }), 'Trợ lý AI Gemini'
+                                ),
+                                React.createElement('button', { 
+                                    onClick: fetchAiAdvice, 
+                                    disabled: isAiLoading, 
+                                    className: 'text-[10px] bg-indigo-500/40 hover:bg-indigo-500/60 px-4 py-2 rounded-full font-black' 
+                                }, isAiLoading ? '...' : 'Tư vấn')
+                            ),
+                            React.createElement('p', { className: 'text-sm font-medium leading-relaxed italic' }, '"' + aiAdvice + '"')
+                        )
+                    ),
+
+                    activeTab === 'charts' && React.createElement('div', { className: 'page-transition space-y-6' },
+                        React.createElement('div', { className: 'h-72 bg-white rounded-[35px] p-6 card-shadow border border-slate-50 relative' },
+                            React.createElement('h3', { className: 'absolute top-6 left-8 text-[10px] font-black text-slate-400 uppercase tracking-[2px]' }, 'Phân bổ chi tiêu'),
+                            chartData.length > 0 ? React.createElement(ResponsiveContainer, { width: '100%', height: '100%' },
+                                React.createElement(PieChart, null,
+                                    React.createElement(Pie, { data: chartData, cx: '50%', cy: '50%', innerRadius: 65, outerRadius: 90, paddingAngle: 8, dataKey: 'value', stroke: 'none' },
+                                        chartData.map((entry, index) => React.createElement(Cell, { key: index, fill: entry.color }))
+                                    ),
+                                    React.createElement(Tooltip, { contentStyle: { borderRadius: '20px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.1)' } })
+                                )
+                            ) : React.createElement('div', { className: 'h-full flex flex-col items-center justify-center text-slate-300' }, 
+                                React.createElement('i', { className: 'fas fa-chart-area text-4xl mb-2 opacity-10' }),
+                                React.createElement('p', { className: 'text-[10px] font-black uppercase tracking-widest' }, 'Chưa có dữ liệu')
+                            )
+                        ),
+                        React.createElement('div', { className: 'grid grid-cols-2 gap-4' },
+                            chartData.map((item, i) => React.createElement('div', { key: i, className: 'bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4 card-shadow' },
+                                React.createElement('div', { className: 'w-3 h-3 rounded-full shrink-0', style: { backgroundColor: item.color } }),
+                                React.createElement('div', { className: 'overflow-hidden' },
+                                    React.createElement('p', { className: 'text-[10px] font-black text-slate-400 uppercase truncate' }, item.name),
+                                    React.createElement('p', { className: 'text-sm font-black' }, item.value.toLocaleString() + 'đ')
+                                )
+                            ))
+                        )
+                    ),
+
+                    activeTab === 'history' && React.createElement('div', { className: 'page-transition space-y-4' },
+                        transactions.length === 0 ? React.createElement('div', { className: 'text-center py-20 text-slate-300' },
+                            React.createElement('i', { className: 'fas fa-history text-5xl mb-4 opacity-10' }),
+                            React.createElement('p', { className: 'font-black text-[10px] uppercase tracking-[3px]' }, 'Trống')
+                        ) :
+                        transactions.map(t => React.createElement('div', { key: t.id, className: 'bg-white p-5 rounded-3xl flex justify-between items-center border border-slate-50 shadow-sm mb-3 transition-transform active:scale-[0.98]' },
+                            React.createElement('div', { className: 'flex items-center gap-4' },
+                                React.createElement('div', { className: 'w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl' }, CATEGORIES.find(c => c.label === t.category)?.icon || '💰'),
+                                React.createElement('div', null,
+                                    React.createElement('p', { className: 'text-sm font-black text-slate-800' }, t.category),
+                                    React.createElement('p', { className: 'text-[10px] text-slate-400 font-bold' }, t.note || t.date)
+                                )
+                            ),
+                            React.createElement('div', { className: 'text-right' },
+                                React.createElement('p', { className: `text-sm font-black ${t.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}` }, (t.type === 'income' ? '+' : '-') + t.amount.toLocaleString() + 'đ'),
+                                React.createElement('button', { onClick: () => handleDelete(t.id), className: 'text-[9px] font-black text-slate-300 uppercase hover:text-rose-400' }, 'Xóa')
+                            )
+                        ))
+                    ),
+
+                    activeTab === 'settings' && React.createElement('div', { className: 'page-transition space-y-8' },
+                        React.createElement('div', { className: 'bg-white p-8 rounded-[35px] card-shadow text-center border border-slate-100' },
+                            React.createElement('p', { className: 'text-[11px] font-black text-slate-400 uppercase mb-4 tracking-[3px]' }, 'Hạn mức chi tiêu tháng'),
+                            React.createElement('input', {
+                                type: 'number',
+                                value: budget,
+                                onChange: e => setBudget(parseInt(e.target.value) || 0),
+                                className: 'text-4xl font-black text-indigo-600 text-center w-full bg-transparent border-b-2 border-indigo-50 focus:border-indigo-400 transition-colors pb-2'
+                            })
+                        ),
+                        React.createElement('div', { className: 'space-y-3' },
+                            React.createElement('button', { 
+                                onClick: () => {
+                                    const data = JSON.stringify({ transactions, budget }, null, 2);
+                                    const blob = new Blob([data], { type: 'application/json' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = 'fintrack_backup.json';
+                                    a.click();
+                                },
+                                className: 'w-full py-5 bg-indigo-50 text-indigo-600 font-black rounded-3xl text-[11px] uppercase tracking-widest' 
+                            }, React.createElement('i', { className: 'fas fa-download mr-2' }), 'Xuất dữ liệu'),
+                            React.createElement('button', { 
+                                onClick: () => { if(confirm('Xóa sạch?')) { setTransactions([]); localStorage.clear(); location.reload(); } },
+                                className: 'w-full py-5 bg-rose-50 text-rose-500 font-black rounded-3xl text-[11px] uppercase tracking-widest' 
+                            }, React.createElement('i', { className: 'fas fa-trash-alt mr-2' }), 'Xóa sạch bộ nhớ')
+                        ),
+                        React.createElement('div', { className: 'text-center pt-8' },
+                            React.createElement('p', { className: 'text-[10px] font-black text-slate-300 uppercase tracking-widest' }, 'FinTrack Pro AI v4.0.0'),
+                            React.createElement('p', { className: 'text-[9px] font-bold text-slate-200' }, 'Local Database & Gemini AI Protected')
+                        )
+                    )
+                ),
+
+                // Navigation
+                React.createElement('nav', { className: 'fixed bottom-0 left-0 right-0 glass-nav flex justify-around items-center px-6 py-4 z-50 max-w-md mx-auto shadow-[0_-10px_30px_rgba(0,0,0,0.05)]' },
+                    React.createElement('button', { onClick: () => setActiveTab('home'), className: `flex flex-col items-center gap-1 flex-1 ${activeTab === 'home' ? 'active-tab' : 'text-slate-400'}` },
+                        React.createElement('i', { className: 'fas fa-plus-circle text-2xl tab-icon' }),
+                        React.createElement('span', { className: 'text-[9px] font-black uppercase' }, 'Mới')
+                    ),
+                    React.createElement('button', { onClick: () => setActiveTab('charts'), className: `flex flex-col items-center gap-1 flex-1 ${activeTab === 'charts' ? 'active-tab' : 'text-slate-400'}` },
+                        React.createElement('i', { className: 'fas fa-chart-pie text-2xl tab-icon' }),
+                        React.createElement('span', { className: 'text-[9px] font-black uppercase' }, 'Đồ thị')
+                    ),
+                    React.createElement('button', { onClick: () => setActiveTab('history'), className: `flex flex-col items-center gap-1 flex-1 ${activeTab === 'history' ? 'active-tab' : 'text-slate-400'}` },
+                        React.createElement('i', { className: 'fas fa-history text-2xl tab-icon' }),
+                        React.createElement('span', { className: 'text-[9px] font-black uppercase' }, 'Lịch sử')
+                    ),
+                    React.createElement('button', { onClick: () => setActiveTab('settings'), className: `flex flex-col items-center gap-1 flex-1 ${activeTab === 'settings' ? 'active-tab' : 'text-slate-400'}` },
+                        React.createElement('i', { className: 'fas fa-sliders-h text-2xl tab-icon' }),
+                        React.createElement('span', { className: 'text-[9px] font-black uppercase' }, 'Cài đặt')
+                    )
+                )
+            );
         };
 
-        // Initialize
-        inputDate.value = new Date().toISOString().split('T')[0];
-        document.getElementById('input-budget').value = budget;
-        loadCategories();
-        updateUI();
+        const root = createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
     </script>
 </body>
 </html>
